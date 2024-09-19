@@ -1,56 +1,47 @@
-import pandas as pd
-from collections import defaultdict, Counter
-import random
+from collections import defaultdict
 from sklearn.model_selection import train_test_split
+import pandas as pd
 
-# Create second-order Markov chain
-def create_second_order_markov_chain(data):
-    markov_chain = defaultdict(Counter)
-    for i in range(len(data) - 2):
-        current_state = (data[i], data[i + 1])
-        next_state = data[i + 2]
-        markov_chain[current_state][next_state] += 1
-    return markov_chain
-
-# Predict the next word based on the last two words
-def predict_next_word(markov_chain, current_state):
-    next_word_probs = markov_chain.get(current_state, None)
-    if not next_word_probs:
-        return None
-    return max(next_word_probs, key=next_word_probs.get)  # Most probable next word
-
-# Evaluate the model's performance
-def evaluate_model(markov_chain, test_data):
-    correct_predictions = 0
-    total_predictions = 0
-
-    for i in range(len(test_data) - 2):
-        current_state = (test_data[i], test_data[i + 1])
-        actual_next_word = test_data[i + 2]
-        predicted_next_word = predict_next_word(markov_chain, current_state)
-
-        if predicted_next_word == actual_next_word:
-            correct_predictions += 1
-        total_predictions += 1
-
-    # Calculate accuracy
-    accuracy = correct_predictions / total_predictions if total_predictions > 0 else 0
-    return accuracy
-
-# Sample CSV data
 df = pd.read_csv('atom_connections.csv')
 
-# Extract the sequence of "Source Atom" and "Target Atom"
-sequence_data = df['Source Atom'].tolist() + df['Target Atom'].tolist()
+# Step 1: Split data into training and test sets
+train_data, test_data = train_test_split(df, test_size=0.2, random_state=42)
 
-# Split the data into training and testing sets
-train_data, test_data = train_test_split(sequence_data, test_size=0.2, random_state=42)
+# Step 2: Train the Markov Chain model on the training set
+# Rebuild transitions using only training data
+transitions_train = defaultdict(lambda: defaultdict(int))
 
-# Create the second-order Markov chain using the training data
-markov_chain = create_second_order_markov_chain(train_data)
+for _, row in train_data.iterrows():
+    source = row['Source Atom']
+    target = row['Target Atom']
+    transitions_train[source][target] += 1
 
-# Evaluate the model on the test data
-accuracy = evaluate_model(markov_chain, test_data)
+# Convert the counts into probabilities
+transition_probabilities_train = {}
+for source, targets in transitions_train.items():
+    total = sum(targets.values())
+    transition_probabilities_train[source] = {target: count / total for target, count in targets.items()}
 
-# Output the accuracy
-print(f"Model Accuracy: {accuracy * 100:.2f}%")
+# Predict function (same as before)
+def predict_next(current_word):
+    if current_word not in transition_probabilities_train:
+        return None  # No next word predicted
+    next_word = max(transition_probabilities_train[current_word], key=transition_probabilities_train[current_word].get)
+    return next_word
+
+# Step 3: Evaluate the accuracy on the test set
+correct_predictions = 0
+total_predictions = 0
+
+for _, row in test_data.iterrows():
+    source = row['Source Atom']
+    actual_next = row['Target Atom']
+    predicted_next = predict_next(source)
+    
+    if predicted_next == actual_next:
+        correct_predictions += 1
+    total_predictions += 1
+
+# Step 4: Calculate accuracy
+accuracy = correct_predictions / total_predictions
+print(f"Accuracy: {accuracy:.2%}")

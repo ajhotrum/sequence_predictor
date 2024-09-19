@@ -11,7 +11,7 @@ URL_FILE_PATH = r'C:\Users\ajhot\Documents\Maslow\abundance_files\urls.txt'
 CSV_FILE_PATH = 'atom_connections.csv'
 
 
-# Downlaod from repo
+# Download from repo
 def download_file_from_github(owner, repo, filepath):
     time.sleep(0.5)
 
